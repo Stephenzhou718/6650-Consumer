@@ -23,7 +23,7 @@ public class MultiThreadConsumer {
   }
 
   public static void main(String[] argv) throws Exception {
-    MultiThreadConsumer consumer = new MultiThreadConsumer("34.208.141.48");
+    MultiThreadConsumer consumer = new MultiThreadConsumer("34.221.202.164");
     consumer.startConsuming();
   }
 
