@@ -1,10 +1,18 @@
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rabbitmq.client.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class MultiThreadConsumer {
 
   private static final String QUEUE_NAME = "skier-data";
   private static final int NUM_OF_CONSUMERS = 5;
   private final ConnectionFactory factory;
+
+  private Map<String, List<String>> skierId2Record = new HashMap<>();
 
   public MultiThreadConsumer(String host) {
     factory = new ConnectionFactory();
@@ -40,6 +48,14 @@ public class MultiThreadConsumer {
 
     DeliverCallback deliverCallback = (consumerTag, delivery) -> {
       String message = new String(delivery.getBody(), "UTF-8");
+      ObjectMapper objectMapper = new ObjectMapper();
+      JsonNode rootNode = objectMapper.readTree(message);
+
+      String skierId = rootNode.get("skierID").asText();
+      if (!skierId2Record.containsKey(skierId)) {
+        skierId2Record.put(skierId, new ArrayList<>());
+      }
+      skierId2Record.get(skierId).add(message);
       System.out.println(" [x] Received '" + message + "'");
     };
 
