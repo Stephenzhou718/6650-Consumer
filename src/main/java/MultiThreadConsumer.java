@@ -1,5 +1,4 @@
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.Gson;
 import com.rabbitmq.client.*;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -8,11 +7,13 @@ import java.util.Map;
 
 public class MultiThreadConsumer {
 
-  private static final String QUEUE_NAME = "skier-data";
-  private static final int NUM_OF_CONSUMERS = 5;
+  private static final String QUEUE_NAME = "skiers-data";
+  private static final int NUM_OF_CONSUMERS = 50;
   private final ConnectionFactory factory;
 
-  private Map<String, List<String>> skierId2Record = new HashMap<>();
+  private Map<Integer, List<String>> skierId2Record = new HashMap<>();
+
+  private MongoDBService mongoDBService = new MongoDBService();
 
   public MultiThreadConsumer(String host) {
     factory = new ConnectionFactory();
@@ -48,17 +49,19 @@ public class MultiThreadConsumer {
 
     DeliverCallback deliverCallback = (consumerTag, delivery) -> {
       String message = new String(delivery.getBody(), "UTF-8");
-      ObjectMapper objectMapper = new ObjectMapper();
-      JsonNode rootNode = objectMapper.readTree(message);
+      Gson gson = new Gson();
+      SkiersLog log = gson.fromJson(message, SkiersLog.class);
 
-      String skierId = rootNode.get("skierID").asText();
+      int skierId = log.getSkierID();
       if (!skierId2Record.containsKey(skierId)) {
         skierId2Record.put(skierId, new ArrayList<>());
       }
       skierId2Record.get(skierId).add(message);
+      mongoDBService.addSkierLog(log);
+      channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
       System.out.println(" [x] Received '" + message + "'");
     };
 
-    channel.basicConsume(QUEUE_NAME, true, deliverCallback, consumerTag -> {});
+    channel.basicConsume(QUEUE_NAME, false, deliverCallback, consumerTag -> {});
   }
 }
